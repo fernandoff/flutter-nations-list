@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:reactivity_test/services/country_service.dart';
 import 'package:reactivity_test/states/country_state.dart';
 import 'package:reactivity_test/stores/country_store.dart';
 import 'package:uno/uno.dart';
 import 'controllers/counter.dart';
+import 'package:intl/intl.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,13 +17,21 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => Counter()),
+        Provider(create: (_) => Uno()),
+        Provider(create: (context) => CountryService(context.read())),
+        ChangeNotifierProvider(create:(context) => CountryStore(context.read()))
+      ],
+      child: MaterialApp(
+        title: 'Flutter Demo',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
+        ),
+        home: const MyHomePage(title: "Flutter Demo Home Page"),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
@@ -36,84 +46,59 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final counter = Counter();
-  final store = CountryStore(CountryService(Uno()));
+  //final store = CountryStore(CountryService(Uno()));
+  final formatNumber = NumberFormat("#,##0.00", "pt_BR");
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    store.fetchCountries();
+    //store.fetchCountries();
+    context.read<CountryStore>().fetchCountries();
   }
-
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   counter.addListener(() {
-  //     setState((){});
-  //   });
-  // }
 
   @override
   Widget build(BuildContext context) {
+    final store = context.watch<CountryStore>();
+    final state = store.value;
+    Widget? child;
+
+    if (state is LoadingCountryState) {
+      child = const Center(child: CircularProgressIndicator());
+    }
+
+    if (state is ErrorCountryState) {
+      child = Center(child: Text(state.message));
+    }
+
+    if (state is SuccessCountryState) {
+      child = ListView.builder(
+        itemCount: state.countries.length,
+        itemBuilder: (_, index) {
+          final country = state.countries[index];
+          return ListTile(
+              textColor: Theme.of(context).primaryColorDark,
+              title: Text("Nation: ${country.nation} - ${country.year}"),
+              subtitle: Text("Population: ${formatNumber.format(country.population)}"),
+              leading: const Icon(Icons.flag)
+          );
+        });
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
+        title: Text("${widget.title} - ${context.watch<Counter>().value}"),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Expanded(
-              child:
-                ValueListenableBuilder(
-                  valueListenable: store,
-                  builder: (_, state, child){
-                    if(state is LoadingCountryState){
-                      return const Center(
-                        child: CircularProgressIndicator()
-                      );
-                    }
-
-                    if(state is ErrorCountryState){
-                      return Center(child: Text(state.message));
-                    }
-
-                    if(state is SuccessCountryState) {
-                      return ListView.builder(
-                        itemCount: state.countries.length,
-                        itemBuilder: (_, index) {
-                          final country = state.countries[index];
-                          return ListTile(
-                            title: Text("Nation: ${country.nation}"),
-                            subtitle: Text("Population: ${country.population}"),
-                            leading: const Icon(Icons.flag),
-                            // title: CountryCard(
-                            //     title: country.nation
-                            // )
-                          );
-                        }
-                      );
-
-                    }
-
-                    return const Center(child: Text("Failed loading country"));
-                  }
-                ),
-            )
-          ],
-        ),
-      ),
+      body: child ?? const Center(child: Icon(Icons.error_outline)),
       floatingActionButton: FloatingActionButton(
-        onPressed: counter.increment,
+        onPressed: () => {context.read<Counter>().increment()},
         tooltip: 'Increment',
         child: const Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
-
 
 class CountryCard extends StatefulWidget {
   const CountryCard({super.key, required this.title});
@@ -125,7 +110,6 @@ class CountryCard extends StatefulWidget {
 }
 
 class _CountryCardState extends State<CountryCard> {
-
   @override
   void initState() {
     super.initState();
@@ -133,9 +117,8 @@ class _CountryCardState extends State<CountryCard> {
 
   @override
   Widget build(BuildContext context) {
-    return(Card(
+    return (Card(
       child: Text(widget.title),
     ));
   }
 }
-
