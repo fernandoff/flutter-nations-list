@@ -53,8 +53,11 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     // TODO: implement initState
     super.initState();
-    //store.fetchCountries();
-    context.read<CountryStore>().fetchCountries();
+
+    // Avoid loading before the widget exists
+    WidgetsBinding.instance.addPostFrameCallback((_){
+      context.read<CountryStore>().fetchCountries();
+    });
   }
 
   @override
@@ -78,8 +81,8 @@ class _MyHomePageState extends State<MyHomePage> {
           final country = state.countries[index];
           return ListTile(
               textColor: Theme.of(context).primaryColorDark,
-              title: Text("Nation: ${country.nation} - ${country.year}"),
-              subtitle: Text("Population: ${formatNumber.format(country.population)}"),
+              title: Text("Nation: ${country.nation} - Year: ${country.year}", textAlign: TextAlign.center),
+              subtitle: Text("Population: ${formatNumber.format(country.population)}", textAlign: TextAlign.center),
               leading: const Icon(Icons.flag)
           );
         });

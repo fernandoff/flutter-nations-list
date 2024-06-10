@@ -7,6 +7,7 @@ class CountryService{
   CountryService(this.uno);
 
   Future<List<CountryModel>> fetchCountries() async{
+    await Future.delayed(const Duration(seconds: 3));
     final response = await uno.get('https://datausa.io/api/data?drilldowns=Nation&measures=Population');
     final list = response.data['data'] as List;
     return list.map((e) => CountryModel.fromMap(e)).toList();
